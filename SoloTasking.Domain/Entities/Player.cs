@@ -29,6 +29,6 @@ public class Player
 
     private int CalculateXpToNextLevel()
     {
-        return 100 + (Level - 1) * 20;
+        return 100 + (Level - 1) * 50;
     }
 }
