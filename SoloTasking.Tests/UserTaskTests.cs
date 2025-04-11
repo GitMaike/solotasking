@@ -30,4 +30,20 @@ public class UserTaskTests
         task.Conclude();
         task.IsCompleted.Should().BeTrue();
     }
+
+    [Fact]
+    public void IsLate_ShouldReturnTrue_WhenDueDatePassedAndTaskNotCompleted()
+    {
+        var title = "Study";
+        var description = "Read chapter 5";
+        var dueDate = DateTime.Today.AddDays(-1);
+        var xp = 50;
+
+        var task = new UserTask(title, description, dueDate, xp);
+
+        var result = task.IsLate();
+
+        result.Should().BeTrue();
+    }
+
 }
