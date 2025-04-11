@@ -14,7 +14,7 @@ public class PlayerTests
     {
         var name = "player 1";
         
-        var player = new Player(name);
+        var player = new Player(name, 10);
 
         player.Name.Should().Be(name);
         player.Level.Should().Be(1);
@@ -23,10 +23,9 @@ public class PlayerTests
     }
 
 [Fact]
-
     public void GainXp_ShouldIncreaseXpAndLevelWhenThresholdIsReached()
     {
-        var player = new Player("name");
+        var player = new Player("name", 10);
 
         player.GainXp(150);
 
@@ -34,4 +33,17 @@ public class PlayerTests
         player.CurrentXp.Should().Be(50);
         player.XpToNextLevel.Should().Be(150);
     }
+
+[Fact]
+    public void Should_GrantReward_WhenLevelUpOccurs()
+    {
+        var player = new Player("name", 10);
+        int xpToLevelUp = player.XpToNextLevel;
+
+        player.GainXp(xpToLevelUp);
+
+        player.Rewards.Should().Contain("Healing Potion");
+
+    }
+
 }
