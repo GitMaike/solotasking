@@ -2,20 +2,26 @@ import { useEffect } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { getSubRank } from "../../constants/game";
 import { useTheme } from "../../hooks/useThemes";
+import { useAuthStore } from "../../store/authStore";
 import { usePlayerStore } from "../../store/playerStore";
+import { carregarDadosDoUsuario } from "../../store/syncStore";
 import { useTaskStore } from "../../store/taskStore";
 
 export default function DashboardScreen() {
   const { xpAtual, level, xpTotal, streak, verificarStreak } = usePlayerStore();
   const { pendentes, concluidas, verificarExpiradas } = useTaskStore();
   const rank = getSubRank(xpTotal);
+  const { user } = useAuthStore();
   const { isDark: dark } = useTheme();
   const s = dark ? darkStyles : lightStyles;
 
   useEffect(() => {
     verificarStreak();
     verificarExpiradas();
-  }, []);
+    if (user) {
+      carregarDadosDoUsuario(user.id);
+    }
+  }, [user]);
 
   const xpNecessario = level * 200;
   const progresso = xpNecessario > 0 ? xpAtual / xpNecessario : 0;

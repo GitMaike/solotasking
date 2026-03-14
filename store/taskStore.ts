@@ -45,8 +45,54 @@ type TaskActions = {
   verificarExpiradas: () => void;
 };
 
-const gerarId = (): string =>
-  `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const gerarId = (): string => {
+  // Gera UUID v4 válido — compatível com PostgreSQL
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// Import dinâmico para evitar dependência circular
+const getUserId = () => {
+  try {
+    const { useAuthStore } = require("./authStore");
+    return useAuthStore.getState().user?.id ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const sincronizarTarefa = async (
+  tipo: "criar" | "concluir" | "apagar" | "expirar",
+  tarefaId: string,
+  xpCobrado?: number,
+) => {
+  try {
+    const userId = getUserId();
+    if (!userId) return;
+
+    const { salvarTarefaNova, atualizarStatusTarefa, salvarPlayerStats } =
+      await import("./syncStore");
+
+    if (tipo === "criar") {
+      await salvarTarefaNova(userId, tarefaId);
+    } else if (tipo === "concluir") {
+      await atualizarStatusTarefa(tarefaId, "concluida");
+      await salvarPlayerStats(userId);
+    } else if (tipo === "apagar") {
+      await atualizarStatusTarefa(tarefaId, "removida", xpCobrado);
+      await salvarPlayerStats(userId);
+    } else if (tipo === "expirar") {
+      await atualizarStatusTarefa(tarefaId, "expirada", xpCobrado);
+      await salvarPlayerStats(userId);
+    }
+  } catch (e) {
+    // Falha silenciosa — dados locais já foram salvos
+    console.warn("Sync falhou:", e);
+  }
+};
 
 export const useTaskStore = create<TaskState & TaskActions>()(
   persist(
@@ -66,19 +112,17 @@ export const useTaskStore = create<TaskState & TaskActions>()(
           dataLimite: dados.dataLimite,
         };
         set((s) => ({ pendentes: [...s.pendentes, novaTarefa] }));
+        sincronizarTarefa("criar", novaTarefa.id);
       },
 
       editarTarefa: (id, dados) => {
         const tarefa = get().pendentes.find((t) => t.id === id);
         if (!tarefa) return;
-
         set((s) => ({
           pendentes: s.pendentes.map((t) =>
             t.id === id ? { ...t, ...dados } : t,
           ),
         }));
-
-        // Editar custa metade da penalidade de apagar
         usePlayerStore.getState().deduzirXP(CUSTO_EDITAR_TAREFA);
       },
 
@@ -99,6 +143,7 @@ export const useTaskStore = create<TaskState & TaskActions>()(
           ],
         });
         usePlayerStore.getState().ganharXP(tarefa.xp);
+        sincronizarTarefa("concluir", id);
       },
 
       apagarTarefa: (id) => {
@@ -119,6 +164,7 @@ export const useTaskStore = create<TaskState & TaskActions>()(
           ],
         });
         usePlayerStore.getState().deduzirXP(25);
+        sincronizarTarefa("apagar", id, 25);
       },
 
       verificarExpiradas: () => {
@@ -150,9 +196,9 @@ export const useTaskStore = create<TaskState & TaskActions>()(
           concluidas: [...novasConcluidas, ...concluidas],
         });
 
-        // Deduz penalidade por cada tarefa expirada
-        expiradas.forEach(() => {
+        expiradas.forEach((t) => {
           usePlayerStore.getState().deduzirXP(penalidade);
+          sincronizarTarefa("expirar", t.id, penalidade);
         });
       },
     }),
