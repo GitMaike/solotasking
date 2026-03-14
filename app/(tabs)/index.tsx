@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { getSubRank } from "../../constants/game";
 import { useTheme } from "../../hooks/useThemes";
@@ -5,18 +6,22 @@ import { usePlayerStore } from "../../store/playerStore";
 import { useTaskStore } from "../../store/taskStore";
 
 export default function DashboardScreen() {
-  const { xpAtual, level, xpTotal, streak } = usePlayerStore();
-  const { pendentes, concluidas } = useTaskStore();
+  const { xpAtual, level, xpTotal, streak, verificarStreak } = usePlayerStore();
+  const { pendentes, concluidas, verificarExpiradas } = useTaskStore();
   const rank = getSubRank(xpTotal);
   const { isDark: dark } = useTheme();
   const s = dark ? darkStyles : lightStyles;
+
+  useEffect(() => {
+    verificarStreak();
+    verificarExpiradas();
+  }, []);
 
   const xpNecessario = level * 200;
   const progresso = xpNecessario > 0 ? xpAtual / xpNecessario : 0;
 
   return (
     <ScrollView style={s.container}>
-      {/* Rank e level */}
       <View style={s.card}>
         <View style={s.rankRow}>
           <View style={s.rankBadge}>
@@ -32,12 +37,11 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Barra de XP */}
         <View style={s.xpBarBg}>
           <View
             style={[
               s.xpBarFill,
-              { width: `${Math.min(progresso * 100, 100)}%` },
+              { width: `${Math.min(progresso * 100, 100)}%` as any },
             ]}
           />
         </View>
@@ -47,7 +51,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Estatísticas */}
       <View style={s.statsRow}>
         <View style={s.statCard}>
           <Text style={s.statNum}>{xpTotal}</Text>
@@ -58,12 +61,13 @@ export default function DashboardScreen() {
           <Text style={s.statLabel}>pendentes</Text>
         </View>
         <View style={s.statCard}>
-          <Text style={s.statNum}>{concluidas.length}</Text>
+          <Text style={s.statNum}>
+            {concluidas.filter((t) => !t.removida).length}
+          </Text>
           <Text style={s.statLabel}>concluídas</Text>
         </View>
       </View>
 
-      {/* Tarefas pendentes resumo */}
       {pendentes.length === 0 ? (
         <View style={s.emptyCard}>
           <Text style={s.emptyText}>Nenhuma missão pendente.</Text>
@@ -107,7 +111,6 @@ const base = {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#1a1630",
     borderWidth: 1.5,
     borderColor: "#534AB7",
     alignItems: "center" as const,
@@ -115,15 +118,14 @@ const base = {
   },
   rankLetra: { fontSize: 20, fontWeight: "500" as const, color: "#7F77DD" },
   rankNome: { fontSize: 14, fontWeight: "500" as const },
-  levelText: { fontSize: 12, marginTop: 2 },
+  levelText: { fontSize: 12, marginTop: 2, color: "#888780" },
   streakBadge: {
     alignItems: "center" as const,
-    backgroundColor: "#1a1630",
     borderRadius: 8,
     padding: 8,
     minWidth: 52,
   },
-  streakNum: { fontSize: 20, fontWeight: "500" as const, color: "#7F77DD" },
+  streakNum: { fontSize: 20, fontWeight: "500" as const },
   streakLabel: { fontSize: 10, color: "#888780" },
   xpBarBg: {
     height: 8,
@@ -189,8 +191,10 @@ const lightStyles = StyleSheet.create({
   ...base,
   container: { ...base.container, backgroundColor: "#f5f5f5" },
   card: { ...base.card, backgroundColor: "#ffffff", borderColor: "#e0e0e0" },
+  rankBadge: { ...base.rankBadge, backgroundColor: "#f0effe" },
   rankNome: { ...base.rankNome, color: "#0a0a0f" },
-  levelText: { ...base.levelText, color: "#888780" },
+  streakBadge: { ...base.streakBadge, backgroundColor: "#f0effe" },
+  streakNum: { ...base.streakNum, color: "#534AB7" },
   xpBarBg: { ...base.xpBarBg, backgroundColor: "#e0e0e0" },
   statCard: {
     ...base.statCard,
@@ -211,8 +215,10 @@ const darkStyles = StyleSheet.create({
   ...base,
   container: { ...base.container, backgroundColor: "#0a0a0f" },
   card: { ...base.card, backgroundColor: "#0f0f1a", borderColor: "#1a1630" },
+  rankBadge: { ...base.rankBadge, backgroundColor: "#1a1630" },
   rankNome: { ...base.rankNome, color: "#e8e6f0" },
-  levelText: { ...base.levelText, color: "#888780" },
+  streakBadge: { ...base.streakBadge, backgroundColor: "#1a1630" },
+  streakNum: { ...base.streakNum, color: "#7F77DD" },
   xpBarBg: { ...base.xpBarBg, backgroundColor: "#1a1630" },
   statCard: {
     ...base.statCard,

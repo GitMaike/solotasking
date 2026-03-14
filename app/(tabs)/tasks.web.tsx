@@ -11,6 +11,15 @@ const DIFICULDADES: { id: Dificuldade; nome: string; xp: number }[] = [
   { id: "epico", nome: "Épico", xp: 100 },
 ];
 
+const CAT_COR: Record<string, string> = {
+  rotina: "#7F77DD",
+  treino: "#1D9E75",
+  estudos: "#378ADD",
+  trabalho: "#D4537E",
+  ingles: "#5DCAA5",
+  musica: "#AFA9EC",
+};
+
 export default function TasksScreen() {
   const { pendentes, concluirTarefa, apagarTarefa, criarTarefa } =
     useTaskStore();
@@ -21,12 +30,12 @@ export default function TasksScreen() {
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState<Categoria | null>(null);
   const [dificuldade, setDificuldade] = useState<Dificuldade | null>(null);
+  const [dataLimite, setDataLimite] = useState("");
   const [modalApagar, setModalApagar] = useState<{
     id: string;
     nome: string;
   } | null>(null);
 
-  // Gerenciar categorias
   const [novaCategoria, setNovaCategoria] = useState("");
   const [mostrarAddCat, setMostrarAddCat] = useState(false);
   const [editandoCat, setEditandoCat] = useState<string | null>(null);
@@ -51,10 +60,14 @@ export default function TasksScreen() {
       categoria: categoria!,
       categoriaNome: catObj?.nome ?? categoria!,
       dificuldade: dificuldade!,
+      dataLimite: dataLimite
+        ? new Date(dataLimite + "T23:59:59").toISOString()
+        : undefined,
     });
     setNome("");
     setCategoria(null);
     setDificuldade(null);
+    setDataLimite("");
     setMostrarForm(false);
   };
 
@@ -64,7 +77,6 @@ export default function TasksScreen() {
     setModalApagar(null);
   };
 
-  // Duplo clique para editar categoria
   const handleCatClick = (id: string, nomeAtual: string) => {
     if (clickTimers.current[id]) {
       clearTimeout(clickTimers.current[id]);
@@ -95,21 +107,7 @@ export default function TasksScreen() {
     marginBottom: 8,
   };
 
-  const btnStyle = (active: boolean, cor?: string): React.CSSProperties => ({
-    padding: "9px 12px",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    border: `${active ? 1.5 : 0.5}px solid ${active ? (cor ?? "#534AB7") : bord}`,
-    backgroundColor: active ? (isDark ? "#1a1630" : "#eeedfb") : input,
-    color: active ? (cor ?? "#7F77DD") : text,
-    fontSize: 13,
-    fontWeight: 500,
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-    position: "relative",
-  });
+  const prazoExpirado = (data: string) => new Date(data) < new Date();
 
   return (
     <div
@@ -120,6 +118,7 @@ export default function TasksScreen() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
+      {/* Botão abrir formulário */}
       <button
         onClick={() => setMostrarForm((v) => !v)}
         style={{
@@ -139,6 +138,7 @@ export default function TasksScreen() {
         {mostrarForm ? "✕ Cancelar" : "+ Nova missão"}
       </button>
 
+      {/* Formulário */}
       {mostrarForm && (
         <div
           style={{
@@ -172,8 +172,6 @@ export default function TasksScreen() {
           />
 
           <label style={labelStyle}>Categoria</label>
-
-          {/* Lista de categorias gerenciáveis */}
           <div
             style={{
               display: "flex",
@@ -243,12 +241,29 @@ export default function TasksScreen() {
               return (
                 <div
                   key={c.id}
-                  style={{ ...btnStyle(sel, c.cor), paddingRight: 6 }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "9px 12px",
+                    borderRadius: 8,
+                    border: `${sel ? 1.5 : 0.5}px solid ${sel ? (c.cor ?? "#534AB7") : bord}`,
+                    backgroundColor: sel
+                      ? isDark
+                        ? "#1a1630"
+                        : "#eeedfb"
+                      : input,
+                    cursor: "pointer",
+                  }}
                 >
                   <span
                     onClick={() => handleCatClick(c.id, c.nome)}
-                    title="Clique para selecionar · duplo clique para editar"
-                    style={{ cursor: "pointer" }}
+                    title="Clique: selecionar · Duplo clique: editar"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: sel ? (c.cor ?? "#7F77DD") : text,
+                    }}
                   >
                     {c.nome}
                   </span>
@@ -263,10 +278,9 @@ export default function TasksScreen() {
                       border: "none",
                       cursor: "pointer",
                       padding: "0 2px",
-                      color: sel ? c.cor : muted,
+                      color: sel ? (c.cor ?? muted) : muted,
                       fontSize: 12,
                       lineHeight: 1,
-                      marginLeft: 2,
                     }}
                     title="Remover categoria"
                   >
@@ -276,7 +290,6 @@ export default function TasksScreen() {
               );
             })}
 
-            {/* Adicionar nova categoria */}
             {mostrarAddCat ? (
               <div style={{ display: "flex", gap: 4 }}>
                 <input
@@ -345,12 +358,12 @@ export default function TasksScreen() {
               </button>
             )}
           </div>
-          <p style={{ fontSize: 11, color: muted, margin: "4px 0 16px" }}>
+          <p style={{ fontSize: 11, color: muted, margin: "0 0 20px" }}>
             Clique para selecionar · duplo clique para editar · ✕ para remover
           </p>
 
           <label style={labelStyle}>Dificuldade</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             {DIFICULDADES.map((d) => {
               const sel = dificuldade === d.id;
               return (
@@ -388,6 +401,58 @@ export default function TasksScreen() {
             })}
           </div>
 
+          {/* Campo de data */}
+          <label style={labelStyle}>Prazo (opcional)</label>
+          <div style={{ marginBottom: 24 }}>
+            <input
+              type="date"
+              value={dataLimite}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setDataLimite(e.target.value)}
+              style={
+                {
+                  backgroundColor: input,
+                  borderRadius: 8,
+                  padding: "11px 14px",
+                  fontSize: 14,
+                  border: `0.5px solid ${bord}`,
+                  color: text,
+                  outline: "none",
+                  fontFamily: "inherit",
+                  colorScheme: isDark ? "dark" : "light",
+                } as React.CSSProperties
+              }
+            />
+            {dataLimite && (
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <span style={{ fontSize: 12, color: "#EF9F27" }}>
+                  ⚠ Penalidade por expiração aumenta com o seu rank
+                </span>
+                <button
+                  onClick={() => setDataLimite("")}
+                  style={{
+                    fontSize: 11,
+                    color: muted,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    textDecoration: "underline",
+                  }}
+                >
+                  remover
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={salvar}
             disabled={!podeSalvar}
@@ -413,6 +478,7 @@ export default function TasksScreen() {
         </div>
       )}
 
+      {/* Lista vazia */}
       {pendentes.length === 0 && !mostrarForm && (
         <div
           style={{
@@ -439,15 +505,20 @@ export default function TasksScreen() {
         </div>
       )}
 
+      {/* Lista de tarefas */}
       {pendentes.map((t) => {
         const catCor =
-          categories.find((c) => c.id === t.categoria)?.cor ?? "#534AB7";
+          categories.find((c) => c.id === t.categoria)?.cor ??
+          CAT_COR[t.categoria] ??
+          "#534AB7";
+        const temPrazo = !!t.dataLimite;
+        const expirou = temPrazo && prazoExpirado(t.dataLimite!);
         return (
           <div
             key={t.id}
             style={{
               backgroundColor: card,
-              border: `0.5px solid ${bord}`,
+              border: `0.5px solid ${expirou ? "#993C1D" : bord}`,
               borderRadius: 12,
               padding: 14,
               marginBottom: 10,
@@ -500,7 +571,7 @@ export default function TasksScreen() {
                 alignItems: "center",
               }}
             >
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <span
                   style={{
                     fontSize: 10,
@@ -511,7 +582,7 @@ export default function TasksScreen() {
                     fontWeight: 500,
                   }}
                 >
-                  {t.categoria}
+                  {t.categoriaNome ?? t.categoria}
                 </span>
                 <span
                   style={{
@@ -525,6 +596,22 @@ export default function TasksScreen() {
                 >
                   {t.dificuldade}
                 </span>
+                {temPrazo && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "3px 9px",
+                      borderRadius: 10,
+                      border: `0.5px solid ${expirou ? "#993C1D" : "#534AB7"}`,
+                      color: expirou ? "#D85A30" : "#7F77DD",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {expirou
+                      ? "⚠ expirou"
+                      : `até ${new Date(t.dataLimite!).toLocaleDateString("pt-BR")}`}
+                  </span>
+                )}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
