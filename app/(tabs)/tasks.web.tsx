@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { dispararXPFloat } from "../../components/XPFloat.web";
 import { type Dificuldade } from "../../constants/game";
 import { useTheme } from "../../hooks/useThemes";
 import { useCategoryStore } from "../../store/categoryStore";
@@ -34,6 +35,7 @@ export default function TasksScreen() {
   const [modalApagar, setModalApagar] = useState<{
     id: string;
     nome: string;
+    xp: number;
   } | null>(null);
 
   const [novaCategoria, setNovaCategoria] = useState("");
@@ -73,6 +75,7 @@ export default function TasksScreen() {
 
   const confirmarApagar = () => {
     if (!modalApagar) return;
+    dispararXPFloat(25, false, window.innerWidth / 2, window.innerHeight / 2);
     apagarTarefa(modalApagar.id);
     setModalApagar(null);
   };
@@ -118,7 +121,6 @@ export default function TasksScreen() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Botão abrir formulário */}
       <button
         onClick={() => setMostrarForm((v) => !v)}
         style={{
@@ -138,7 +140,6 @@ export default function TasksScreen() {
         {mostrarForm ? "✕ Cancelar" : "+ Nova missão"}
       </button>
 
-      {/* Formulário */}
       {mostrarForm && (
         <div
           style={{
@@ -401,7 +402,6 @@ export default function TasksScreen() {
             })}
           </div>
 
-          {/* Campo de data */}
           <label style={labelStyle}>Prazo (opcional)</label>
           <div style={{ marginBottom: 24 }}>
             <input
@@ -478,7 +478,6 @@ export default function TasksScreen() {
         </div>
       )}
 
-      {/* Lista vazia */}
       {pendentes.length === 0 && !mostrarForm && (
         <div
           style={{
@@ -505,7 +504,6 @@ export default function TasksScreen() {
         </div>
       )}
 
-      {/* Lista de tarefas */}
       {pendentes.map((t) => {
         const catCor =
           categories.find((c) => c.id === t.categoria)?.cor ??
@@ -615,7 +613,9 @@ export default function TasksScreen() {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
-                  onClick={() => setModalApagar({ id: t.id, nome: t.nome })}
+                  onClick={() =>
+                    setModalApagar({ id: t.id, nome: t.nome, xp: t.xp })
+                  }
                   style={{
                     padding: "6px 14px",
                     borderRadius: 8,
@@ -631,7 +631,18 @@ export default function TasksScreen() {
                   Apagar
                 </button>
                 <button
-                  onClick={() => concluirTarefa(t.id)}
+                  onClick={(e) => {
+                    const rect = (
+                      e.target as HTMLElement
+                    ).getBoundingClientRect();
+                    dispararXPFloat(
+                      t.xp,
+                      true,
+                      rect.left + rect.width / 2,
+                      rect.top,
+                    );
+                    concluirTarefa(t.id);
+                  }}
                   style={{
                     padding: "6px 14px",
                     borderRadius: 8,
@@ -652,7 +663,6 @@ export default function TasksScreen() {
         );
       })}
 
-      {/* Modal de exclusão */}
       {modalApagar && (
         <div
           style={{

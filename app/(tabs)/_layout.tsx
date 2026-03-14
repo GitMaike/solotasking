@@ -1,5 +1,7 @@
 import { Tabs } from "expo-router";
 import { Text, View } from "react-native";
+import { LevelUpModal } from "../../components/LevelUpModal.web";
+import { XPFloatLayer } from "../../components/XPFloat.web";
 import { useTheme } from "../../hooks/useThemes";
 import { t } from "../../locales";
 
@@ -12,6 +14,7 @@ function ThemeToggle() {
   return (
     <div
       onClick={toggle}
+      title={isDark ? "Mudar para modo claro" : "Mudar para modo escuro"}
       style={{
         width: 40,
         height: 40,
@@ -51,61 +54,64 @@ export default function TabLayout() {
   const textColor = isDark ? "#e8e6f0" : "#0a0a0f";
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: activeColor,
-        tabBarInactiveTintColor: inactiveColor,
-        tabBarStyle: {
-          backgroundColor: bgColor,
-          borderTopColor: isDark ? "#1a1630" : "#e0e0e0",
-          borderTopWidth: 0.5,
-        },
-        headerStyle: { backgroundColor: bgColor },
-        headerTintColor: textColor,
-        headerShown: true,
-        headerRight: () => (
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <ThemeToggle />
-          </View>
-        ),
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("tabs.home"),
-          tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} />,
-          headerTitle: t("home.title"),
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: activeColor,
+          tabBarInactiveTintColor: inactiveColor,
+          tabBarStyle: {
+            backgroundColor: bgColor,
+            borderTopColor: isDark ? "#1a1630" : "#e0e0e0",
+            borderTopWidth: 0.5,
+          },
+          headerStyle: { backgroundColor: bgColor },
+          headerTintColor: textColor,
+          headerShown: true,
+          headerRight: () => (
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <ThemeToggle />
+            </View>
+          ),
         }}
-      />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: t("tabs.tasks"),
-          tabBarIcon: ({ color }) => <TabIcon label="◎" color={color} />,
-          headerTitle: t("tasks.title"),
-        }}
-      />
-      <Tabs.Screen
-        name="friends"
-        options={{
-          title: t("tabs.friends"),
-          tabBarIcon: ({ color }) => <TabIcon label="⚔" color={color} />,
-          headerTitle: t("friends.title"),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("tabs.profile"),
-          tabBarIcon: ({ color }) => <TabIcon label="◈" color={color} />,
-          headerTitle: t("profile.title"),
-        }}
-      />
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: t("tabs.home"),
+            tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} />,
+            headerTitle: t("home.title"),
+          }}
+        />
+        <Tabs.Screen
+          name="tasks"
+          options={{
+            title: t("tabs.tasks"),
+            tabBarIcon: ({ color }) => <TabIcon label="◎" color={color} />,
+            headerTitle: t("tasks.title"),
+          }}
+        />
+        <Tabs.Screen
+          name="friends"
+          options={{
+            title: t("tabs.friends"),
+            tabBarIcon: ({ color }) => <TabIcon label="⚔" color={color} />,
+            headerTitle: t("friends.title"),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: t("tabs.profile"),
+            tabBarIcon: ({ color }) => <TabIcon label="◈" color={color} />,
+            headerTitle: t("profile.title"),
+          }}
+        />
+        <Tabs.Screen name="progress" options={{ href: null }} />
+        <Tabs.Screen name="completed" options={{ href: null }} />
+      </Tabs>
 
-      {/* Esconder abas legadas da navegação */}
-      <Tabs.Screen name="progress" options={{ href: null }} />
-      <Tabs.Screen name="completed" options={{ href: null }} />
-    </Tabs>
+      <XPFloatLayer />
+      <LevelUpModal />
+    </>
   );
 }

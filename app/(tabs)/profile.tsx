@@ -5,7 +5,6 @@ import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../store/authStore";
 import { usePlayerStore } from "../../store/playerStore";
 import { useTaskStore } from "../../store/taskStore";
-import { useThemeStore } from "../../store/themeStore";
 
 const CATEGORIA_COR: Record<string, string> = {
   rotina: "#7F77DD",
@@ -21,14 +20,20 @@ export default function ProfileScreen() {
   const { xpAtual, xpTotal, level, streak } = usePlayerStore();
   const { concluidas } = useTaskStore();
   const { isDark } = useTheme();
-  const { preference, setPreference } = useThemeStore();
 
   const [profile, setProfile] = useState<{
     username: string;
     display_name: string;
     avatar_url: string | null;
+    username_updated_at: string | null;
   } | null>(null);
+
   const [abaAtiva, setAbaAtiva] = useState<"stats" | "historico">("stats");
+  const [editandoUsername, setEditandoUsername] = useState(false);
+  const [novoUsername, setNovoUsername] = useState("");
+  const [erroUsername, setErroUsername] = useState<string | null>(null);
+  const [salvandoUsername, setSalvandoUsername] = useState(false);
+  const [modalLogout, setModalLogout] = useState(false);
 
   const rank = getSubRank(xpTotal);
 
@@ -43,7 +48,7 @@ export default function ProfileScreen() {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("username, display_name, avatar_url")
+      .select("username, display_name, avatar_url, username_updated_at")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
@@ -51,14 +56,64 @@ export default function ProfileScreen() {
       });
   }, [user]);
 
+  const diasParaPoderEditar = () => {
+    if (!profile?.username_updated_at) return 0;
+    const ultimaEdicao = new Date(profile.username_updated_at).getTime();
+    const diasPassados = (Date.now() - ultimaEdicao) / 86400000;
+    const restam = Math.ceil(7 - diasPassados);
+    return restam > 0 ? restam : 0;
+  };
+
+  const podeEditarUsername = () => diasParaPoderEditar() === 0;
+
+  // Usa a function segura do banco — o cooldown e unicidade são validados server-side
+  const salvarUsername = async () => {
+    const trimmed = novoUsername.trim();
+    if (!trimmed) return;
+    setSalvandoUsername(true);
+    setErroUsername(null);
+
+    const { data, error } = await supabase.rpc("update_username", {
+      new_username: trimmed,
+    });
+
+    setSalvandoUsername(false);
+
+    if (error) {
+      setErroUsername(error.message);
+      return;
+    }
+
+    const result = data as { error?: string; success?: boolean };
+
+    if (result?.error) {
+      setErroUsername(result.error);
+      return;
+    }
+
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            username: trimmed,
+            display_name: trimmed,
+            username_updated_at: new Date().toISOString(),
+          }
+        : p,
+    );
+    setEditandoUsername(false);
+    setNovoUsername("");
+  };
+
   const handleSignOut = async () => {
-    if (!window.confirm("Sair da conta?")) return;
     await signOut();
   };
 
   const inicialAvatar = profile?.username?.[0]?.toUpperCase() ?? "?";
   const concluidasReais = concluidas.filter((t) => !t.removida && !t.expirada);
   const removidas = concluidas.filter((t) => t.removida || t.expirada);
+  const podEditar = podeEditarUsername();
+  const diasRestantes = diasParaPoderEditar();
 
   return (
     <div
@@ -68,7 +123,7 @@ export default function ProfileScreen() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Header do perfil */}
+      {/* Header */}
       <div
         style={{
           backgroundColor: card,
@@ -84,7 +139,6 @@ export default function ProfileScreen() {
             marginBottom: 16,
           }}
         >
-          {/* Avatar */}
           <div
             style={{
               width: 64,
@@ -111,20 +165,162 @@ export default function ProfileScreen() {
             )}
           </div>
 
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {editandoUsername ? (
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <input
+                    autoFocus
+                    value={novoUsername}
+                    onChange={(e) => setNovoUsername(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") salvarUsername();
+                      if (e.key === "Escape") {
+                        setEditandoUsername(false);
+                        setErroUsername(null);
+                      }
+                    }}
+                    placeholder={profile?.username ?? "username"}
+                    maxLength={30}
+                    style={{
+                      flex: 1,
+                      backgroundColor: input,
+                      border: `1.5px solid #534AB7`,
+                      borderRadius: 8,
+                      padding: "7px 10px",
+                      fontSize: 15,
+                      color: text,
+                      outline: "none",
+                      fontFamily: "inherit",
+                      minWidth: 0,
+                    }}
+                  />
+                  <button
+                    onClick={salvarUsername}
+                    disabled={
+                      salvandoUsername || novoUsername.trim().length < 3
+                    }
+                    style={{
+                      backgroundColor:
+                        novoUsername.trim().length >= 3
+                          ? "#534AB7"
+                          : isDark
+                            ? "#1a1630"
+                            : "#d5d5d5",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "0 14px",
+                      cursor:
+                        novoUsername.trim().length >= 3
+                          ? "pointer"
+                          : "not-allowed",
+                      fontFamily: "inherit",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {salvandoUsername ? "..." : "Salvar"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditandoUsername(false);
+                      setErroUsername(null);
+                    }}
+                    style={{
+                      backgroundColor: "transparent",
+                      color: muted,
+                      border: `0.5px solid ${bord}`,
+                      borderRadius: 8,
+                      padding: "0 10px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      fontSize: 13,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {erroUsername && (
+                  <p style={{ fontSize: 12, color: "#D85A30", margin: 0 }}>
+                    {erroUsername}
+                  </p>
+                )}
+                <p style={{ fontSize: 11, color: muted, margin: "4px 0 0" }}>
+                  3-30 caracteres · letras, números e _ · verificação no
+                  servidor
+                </p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 2,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: text,
+                    margin: 0,
+                  }}
+                >
+                  {profile?.display_name ?? "..."}
+                </p>
+                {podEditar ? (
+                  <button
+                    onClick={() => {
+                      setEditandoUsername(true);
+                      setNovoUsername(profile?.username ?? "");
+                    }}
+                    title="Editar username"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: muted,
+                      fontSize: 14,
+                      padding: "2px 4px",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✏️
+                  </button>
+                ) : (
+                  <span
+                    title={`Pode alterar em ${diasRestantes} dias`}
+                    style={{
+                      fontSize: 11,
+                      color: muted,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                      cursor: "default",
+                    }}
+                  >
+                    🔒 {diasRestantes}d
+                  </span>
+                )}
+              </div>
+            )}
+
             <p
               style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: text,
-                margin: "0 0 2px",
+                fontSize: 13,
+                color: muted,
+                margin: "0 0 6px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              {profile?.display_name ?? "..."}
-            </p>
-            <p style={{ fontSize: 13, color: muted, margin: "0 0 4px" }}>
               @{profile?.username ?? "..."} · {user?.email}
             </p>
+
             <div
               style={{
                 display: "inline-flex",
@@ -180,7 +376,7 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        {/* Stats rápidos */}
+        {/* Stats */}
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           {[
             { val: xpTotal.toLocaleString("pt-BR"), label: "XP total" },
@@ -214,62 +410,11 @@ export default function ProfileScreen() {
       </div>
 
       <div style={{ padding: 16 }}>
-        {/* Tema */}
-        <div
-          style={{
-            backgroundColor: card,
-            border: `0.5px solid ${bord}`,
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 12,
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: muted,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              margin: "0 0 12px",
-            }}
-          >
-            Tema
-          </p>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["system", "dark", "light"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPreference(p)}
-                style={{
-                  flex: 1,
-                  padding: "9px 0",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  border: `${preference === p ? 1.5 : 0.5}px solid ${preference === p ? "#534AB7" : bord}`,
-                  backgroundColor:
-                    preference === p ? (isDark ? "#1a1630" : "#eeedfb") : input,
-                  color: preference === p ? "#7F77DD" : text,
-                }}
-              >
-                {p === "system"
-                  ? "⚙ Sistema"
-                  : p === "dark"
-                    ? "🌙 Escuro"
-                    : "☀️ Claro"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Abas histórico / stats */}
+        {/* Abas */}
         <div
           style={{
             display: "flex",
-            backgroundColor: input,
+            backgroundColor: isDark ? "#0f0f1a" : "#f0f0f0",
             borderRadius: 10,
             padding: 4,
             marginBottom: 12,
@@ -298,7 +443,7 @@ export default function ProfileScreen() {
           ))}
         </div>
 
-        {/* Stats de ranks */}
+        {/* Tabela de ranks */}
         {abaAtiva === "stats" && (
           <div
             style={{
@@ -326,37 +471,23 @@ export default function ProfileScreen() {
                 letra: "E",
                 nome: "Novato / Sobrevivente / Desafiante",
                 min: 0,
-                max: 5999,
               },
-              {
-                letra: "D",
-                nome: "Recruta / Discípulo / Veterano",
-                min: 6000,
-                max: 24999,
-              },
+              { letra: "D", nome: "Recruta / Discípulo / Veterano", min: 6000 },
               {
                 letra: "C",
                 nome: "Caçador / Rastreador / Guardião",
                 min: 25000,
-                max: 74999,
               },
               {
                 letra: "B",
                 nome: "Sentinela / Executor / Comandante",
                 min: 75000,
-                max: 199999,
               },
-              {
-                letra: "A",
-                nome: "Lendário / Mítico / Supremo",
-                min: 200000,
-                max: 499999,
-              },
+              { letra: "A", nome: "Lendário / Mítico / Supremo", min: 200000 },
               {
                 letra: "S",
                 nome: "Soberano / Transcendente / Monarca",
                 min: 500000,
-                max: Infinity,
               },
             ].map((r) => {
               const ativo = rank.rank === r.letra;
@@ -405,7 +536,7 @@ export default function ProfileScreen() {
           </div>
         )}
 
-        {/* Histórico de tarefas */}
+        {/* Histórico */}
         {abaAtiva === "historico" && (
           <div
             style={{
@@ -484,7 +615,6 @@ export default function ProfileScreen() {
                 </div>
               );
             })}
-
             {removidas.length > 0 && (
               <>
                 <p
@@ -556,9 +686,9 @@ export default function ProfileScreen() {
           </div>
         )}
 
-        {/* Logout */}
+        {/* Botão logout */}
         <button
-          onClick={handleSignOut}
+          onClick={() => setModalLogout(true)}
           style={{
             width: "100%",
             backgroundColor: "transparent",
@@ -575,6 +705,86 @@ export default function ProfileScreen() {
           Sair da conta
         </button>
       </div>
+
+      {/* Modal logout */}
+      {modalLogout && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: card,
+              borderRadius: 16,
+              border: `0.5px solid ${bord}`,
+              padding: 28,
+              maxWidth: 320,
+              width: "100%",
+              textAlign: "center",
+              fontFamily: "system-ui, sans-serif",
+            }}
+          >
+            <div style={{ fontSize: 40, marginBottom: 12 }}>👋</div>
+            <p
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                color: text,
+                margin: "0 0 8px",
+              }}
+            >
+              Sair da conta?
+            </p>
+            <p style={{ fontSize: 13, color: muted, margin: "0 0 24px" }}>
+              Seu progresso está salvo. Pode voltar quando quiser, caçador.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setModalLogout(false)}
+                style={{
+                  flex: 1,
+                  padding: "11px 0",
+                  borderRadius: 10,
+                  border: `0.5px solid ${bord}`,
+                  backgroundColor: "transparent",
+                  color: text,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSignOut}
+                style={{
+                  flex: 1,
+                  padding: "11px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  backgroundColor: "#993C1D",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

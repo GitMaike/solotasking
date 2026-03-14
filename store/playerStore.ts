@@ -12,7 +12,7 @@ export type PlayerState = {
   level: number;
   xpTotal: number;
   streak: number;
-  ultimoDiaAtivo: string | null; // formato: 'YYYY-MM-DD'
+  ultimoDiaAtivo: string | null;
 };
 
 export type PlayerActions = {
@@ -20,7 +20,7 @@ export type PlayerActions = {
   deduzirXP: (quantidade?: number) => void;
   incrementarStreak: () => void;
   resetarStreak: () => void;
-  verificarStreak: () => void; // chama no boot do app
+  verificarStreak: () => void;
 };
 
 const hoje = () => new Date().toISOString().split("T")[0];
@@ -42,16 +42,34 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       ganharXP: (quantidade) => {
         const { xpAtual, level, xpTotal } = get();
+        const rankAntes = getSubRank(xpTotal);
         const novoXPTotal = xpTotal + quantidade;
         let novoXP = xpAtual + quantidade;
         let novoLevel = level;
+        let levelUpOcorreu = false;
 
         while (novoXP >= XP_PARA_PROXIMO_LEVEL(novoLevel)) {
           novoXP -= XP_PARA_PROXIMO_LEVEL(novoLevel);
           novoLevel += 1;
+          levelUpOcorreu = true;
         }
 
         set({ xpAtual: novoXP, level: novoLevel, xpTotal: novoXPTotal });
+
+        if (levelUpOcorreu) {
+          const rankDepois = getSubRank(novoXPTotal);
+          try {
+            const {
+              dispararLevelUp,
+            } = require("../components/LevelUpModal.web");
+            dispararLevelUp({
+              novoLevel,
+              rankAnterior: rankAntes.nome,
+              novoRank: rankDepois.nome,
+              rankMudou: rankAntes.id !== rankDepois.id,
+            });
+          } catch {}
+        }
       },
 
       deduzirXP: (quantidade = CUSTO_APAGAR_TAREFA) => {
@@ -90,22 +108,18 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
         const { ultimoDiaAtivo, streak } = get();
         const dataHoje = hoje();
 
-        // Primeira vez abrindo
         if (!ultimoDiaAtivo) {
           set({ streak: 1, ultimoDiaAtivo: dataHoje });
           return;
         }
 
-        // Já abriu hoje — não faz nada
         if (ultimoDiaAtivo === dataHoje) return;
 
         const diff = diffDias(ultimoDiaAtivo, dataHoje);
 
         if (diff === 1) {
-          // Abriu ontem → mantém streak e incrementa
           set({ streak: streak + 1, ultimoDiaAtivo: dataHoje });
         } else {
-          // Perdeu mais de 1 dia → reseta
           set({ streak: 1, ultimoDiaAtivo: dataHoje });
         }
       },
