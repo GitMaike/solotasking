@@ -1,69 +1,61 @@
-import React from 'react';
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from "expo-router";
+import { Text, useColorScheme } from "react-native";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+function TabIcon({ label, color }: { label: string; color: string }) {
+  return <Text style={{ color, fontSize: 20 }}>{label}</Text>;
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const dark = useColorScheme() === "dark";
+  const activeColor = "#7F77DD";
+  const inactiveColor = dark ? "#444441" : "#888780";
+  const bgColor = dark ? "#0a0a0f" : "#ffffff";
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        tabBarActiveTintColor: activeColor,
+        tabBarInactiveTintColor: inactiveColor,
+        tabBarStyle: {
+          backgroundColor: bgColor,
+          borderTopColor: dark ? "#1a1630" : "#e0e0e0",
+          borderTopWidth: 0.5,
+        },
+        headerStyle: { backgroundColor: bgColor },
+        headerTintColor: dark ? "#e8e6f0" : "#0a0a0f",
+        headerShown: true,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: "Início",
+          tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} />,
+          headerTitle: "SoloTasking",
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="tasks"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          title: "Tarefas",
+          tabBarIcon: ({ color }) => <TabIcon label="◎" color={color} />,
+          headerTitle: "Missões do dia",
+        }}
+      />
+      <Tabs.Screen
+        name="completed"
+        options={{
+          title: "Concluídas",
+          tabBarIcon: ({ color }) => <TabIcon label="✓" color={color} />,
+          headerTitle: "Missões concluídas",
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: "Progresso",
+          tabBarIcon: ({ color }) => <TabIcon label="▲" color={color} />,
+          headerTitle: "Seu progresso",
         }}
       />
     </Tabs>

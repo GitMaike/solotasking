@@ -1,6 +1,6 @@
 import { act } from "react";
-import { useTaskStore } from "../store/taskStore";
 import { usePlayerStore } from "../store/playerStore";
+import { useTaskStore } from "../store/taskStore";
 
 beforeEach(() => {
   useTaskStore.setState({ pendentes: [], concluidas: [] });
@@ -64,6 +64,20 @@ describe("concluirTarefa", () => {
     expect(useTaskStore.getState().concluidas).toHaveLength(1);
   });
 
+  it("marca tarefa concluída com removida=false", () => {
+    act(() =>
+      useTaskStore.getState().criarTarefa({
+        nome: "Tocar guitarra",
+        categoria: "musica",
+        dificuldade: "medio",
+      }),
+    );
+    const id = useTaskStore.getState().pendentes[0].id;
+    act(() => useTaskStore.getState().concluirTarefa(id));
+
+    expect(useTaskStore.getState().concluidas[0].removida).toBe(false);
+  });
+
   it("dá XP ao jogador ao concluir", () => {
     act(() =>
       useTaskStore.getState().criarTarefa({
@@ -73,7 +87,6 @@ describe("concluirTarefa", () => {
       }),
     );
     const id = useTaskStore.getState().pendentes[0].id;
-
     act(() => useTaskStore.getState().concluirTarefa(id));
 
     expect(usePlayerStore.getState().xpAtual).toBe(25);
@@ -96,10 +109,26 @@ describe("apagarTarefa", () => {
       }),
     );
     const id = useTaskStore.getState().pendentes[0].id;
-
     act(() => useTaskStore.getState().apagarTarefa(id));
 
     expect(useTaskStore.getState().pendentes).toHaveLength(0);
+  });
+
+  it("adiciona tarefa ao histórico com removida=true", () => {
+    act(() =>
+      useTaskStore.getState().criarTarefa({
+        nome: "Tarefa removida",
+        categoria: "rotina",
+        dificuldade: "medio",
+      }),
+    );
+    const id = useTaskStore.getState().pendentes[0].id;
+    act(() => useTaskStore.getState().apagarTarefa(id));
+
+    const historico = useTaskStore.getState().concluidas;
+    expect(historico).toHaveLength(1);
+    expect(historico[0].removida).toBe(true);
+    expect(historico[0].xpCobrado).toBe(25);
   });
 
   it("deduz 25 XP do jogador ao apagar", () => {
@@ -112,13 +141,12 @@ describe("apagarTarefa", () => {
       }),
     );
     const id = useTaskStore.getState().pendentes[0].id;
-
     act(() => useTaskStore.getState().apagarTarefa(id));
 
     expect(usePlayerStore.getState().xpAtual).toBe(75);
   });
 
-  it("não apaga tarefas concluídas", () => {
+  it("não apaga tarefas já concluídas", () => {
     act(() =>
       useTaskStore.getState().criarTarefa({
         nome: "Tarefa concluída",
@@ -128,10 +156,15 @@ describe("apagarTarefa", () => {
     );
     const id = useTaskStore.getState().pendentes[0].id;
     act(() => useTaskStore.getState().concluirTarefa(id));
-
-    // tenta apagar pelo mesmo id — não deve funcionar
     act(() => useTaskStore.getState().apagarTarefa(id));
 
+    // Ainda tem 1 no histórico (a concluída), não duplicou
     expect(useTaskStore.getState().concluidas).toHaveLength(1);
+    expect(useTaskStore.getState().concluidas[0].removida).toBe(false);
+  });
+
+  it("não faz nada se id não existe", () => {
+    act(() => useTaskStore.getState().apagarTarefa("id-inexistente"));
+    expect(useTaskStore.getState().concluidas).toHaveLength(0);
   });
 });

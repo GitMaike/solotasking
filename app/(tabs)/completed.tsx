@@ -25,43 +25,58 @@ export default function CompletedScreen() {
     <ScrollView style={s.container}>
       {concluidas.length === 0 ? (
         <View style={s.emptyCard}>
-          <Text style={s.emptyText}>Nenhuma missão concluída ainda</Text>
+          <Text style={s.emptyText}>Nenhuma missão no histórico ainda</Text>
           <Text style={s.emptySubText}>
-            Complete tarefas para ver seu histórico aqui
+            Complete ou remova tarefas para ver aqui
           </Text>
         </View>
       ) : (
         concluidas.map((t) => (
-          <View key={t.id + t.concluidaEm} style={s.card}>
+          <View
+            key={t.id + t.concluidaEm}
+            style={[s.card, t.removida && s.cardRemovida]}
+          >
             <View style={s.cardTop}>
               <View
                 style={[
                   s.catDot,
-                  { backgroundColor: CATEGORIA_COR[t.categoria] ?? "#534AB7" },
+                  {
+                    backgroundColor: t.removida
+                      ? "#993C1D"
+                      : (CATEGORIA_COR[t.categoria] ?? "#534AB7"),
+                  },
                 ]}
               />
-              <Text style={s.taskNome} numberOfLines={2}>
+              <Text
+                style={[s.taskNome, t.removida && s.taskNomeRemovida]}
+                numberOfLines={2}
+              >
                 {t.nome}
               </Text>
-              <Text style={s.taskXP}>+{t.xp} XP</Text>
+              {t.removida ? (
+                <Text style={s.xpRemovido}>-{t.xpCobrado} XP</Text>
+              ) : (
+                <Text style={s.xpGanho}>+{t.xp} XP</Text>
+              )}
             </View>
+
             <View style={s.cardBottom}>
               <Text style={s.dateText}>
                 {new Date(t.concluidaEm).toLocaleDateString("pt-BR")}
               </Text>
               <View
                 style={[
-                  s.pill,
-                  { borderColor: CATEGORIA_COR[t.categoria] ?? "#534AB7" },
+                  s.badge,
+                  t.removida ? s.badgeRemovida : s.badgeConcluida,
                 ]}
               >
                 <Text
                   style={[
-                    s.pillText,
-                    { color: CATEGORIA_COR[t.categoria] ?? "#534AB7" },
+                    s.badgeText,
+                    t.removida ? s.badgeTextRemovida : s.badgeTextConcluida,
                   ]}
                 >
-                  {t.categoria}
+                  {t.removida ? "removida pelo usuário" : t.categoria}
                 </Text>
               </View>
             </View>
@@ -84,6 +99,7 @@ const base = {
   emptyText: { fontSize: 15, fontWeight: "500" as const, marginBottom: 6 },
   emptySubText: { fontSize: 13 },
   card: { borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 0.5 },
+  cardRemovida: { opacity: 0.7 },
   cardTop: {
     flexDirection: "row" as const,
     alignItems: "flex-start" as const,
@@ -97,20 +113,26 @@ const base = {
     fontWeight: "500" as const,
     lineHeight: 20,
   },
-  taskXP: { fontSize: 13, color: "#1D9E75", fontWeight: "500" as const },
+  taskNomeRemovida: { textDecorationLine: "line-through" as const },
+  xpGanho: { fontSize: 13, color: "#1D9E75", fontWeight: "500" as const },
+  xpRemovido: { fontSize: 13, color: "#D85A30", fontWeight: "500" as const },
   cardBottom: {
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
     alignItems: "center" as const,
   },
   dateText: { fontSize: 11 },
-  pill: {
+  badge: {
     borderWidth: 0.5,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  pillText: { fontSize: 10, fontWeight: "500" as const },
+  badgeConcluida: { borderColor: "#1D9E75" },
+  badgeRemovida: { borderColor: "#993C1D" },
+  badgeText: { fontSize: 10, fontWeight: "500" as const },
+  badgeTextConcluida: { color: "#1D9E75" },
+  badgeTextRemovida: { color: "#D85A30" },
 };
 
 const lightStyles = StyleSheet.create({

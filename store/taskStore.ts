@@ -1,18 +1,10 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { XP_POR_DIFICULDADE, type Dificuldade } from "../constants/game";
 import { usePlayerStore } from "./playerStore";
 
-// --- Tipos ---
-
-export type Categoria =
-  | "rotina"
-  | "treino"
-  | "estudos"
-  | "trabalho"
-  | "ingles"
-  | "musica";
+export type Categoria = string;
 
 export type Tarefa = {
   id: string;
@@ -20,11 +12,13 @@ export type Tarefa = {
   categoria: Categoria;
   dificuldade: Dificuldade;
   xp: number;
-  criadaEm: string; // ISO string da data de criação
+  criadaEm: string;
 };
 
 export type TarefaConcluida = Tarefa & {
-  concluidaEm: string; // ISO string da data de conclusão
+  concluidaEm: string;
+  removida?: boolean; // true = foi apagada, false/undefined = foi concluída
+  xpCobrado?: number; // custo cobrado ao remover (sempre 25)
 };
 
 export type TaskState = {
@@ -38,15 +32,8 @@ export type TaskActions = {
   apagarTarefa: (id: string) => void;
 };
 
-// --- Helpers ---
-
-const gerarId = (): string => {
-  // ID único baseado em timestamp + número aleatório
-  // Simples e suficiente para uso local sem servidor
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-};
-
-// --- Store ---
+const gerarId = (): string =>
+  `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const useTaskStore = create<TaskState & TaskActions>()(
   persist(
@@ -63,22 +50,18 @@ export const useTaskStore = create<TaskState & TaskActions>()(
           xp: XP_POR_DIFICULDADE[dados.dificuldade],
           criadaEm: new Date().toISOString(),
         };
-        set((state) => ({
-          pendentes: [...state.pendentes, novaTarefa],
-        }));
+        set((state) => ({ pendentes: [...state.pendentes, novaTarefa] }));
       },
 
       concluirTarefa: (id) => {
         const { pendentes, concluidas } = get();
         const tarefa = pendentes.find((t) => t.id === id);
-
-        // Se a tarefa não existe, não faz nada
         if (!tarefa) return;
 
-        // Move para concluídas com timestamp
         const tarefaConcluida: TarefaConcluida = {
           ...tarefa,
           concluidaEm: new Date().toISOString(),
+          removida: false,
         };
 
         set({
@@ -86,22 +69,28 @@ export const useTaskStore = create<TaskState & TaskActions>()(
           concluidas: [tarefaConcluida, ...concluidas],
         });
 
-        // Dá o XP ao jogador — taskStore avisa playerStore
         usePlayerStore.getState().ganharXP(tarefa.xp);
       },
 
       apagarTarefa: (id) => {
-        const { pendentes } = get();
+        const { pendentes, concluidas } = get();
         const tarefa = pendentes.find((t) => t.id === id);
-
-        // Só apaga pendentes — concluídas são imutáveis
         if (!tarefa) return;
+
+        // Registra no histórico com marcador de remoção
+        const tarefaRemovida: TarefaConcluida = {
+          ...tarefa,
+          concluidaEm: new Date().toISOString(),
+          removida: true,
+          xpCobrado: 25,
+        };
 
         set({
           pendentes: pendentes.filter((t) => t.id !== id),
+          concluidas: [tarefaRemovida, ...concluidas],
         });
 
-        // Deduz o custo do jogador — pode regredir de level
+        // Deduz o custo — pode regredir de level
         usePlayerStore.getState().deduzirXP();
       },
     }),
