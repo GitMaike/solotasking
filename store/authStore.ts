@@ -79,5 +79,25 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   signOut: async () => {
     await supabase.auth.signOut();
     set({ user: null, session: null });
+    // Limpa dados locais ao deslogar
+    const { useTaskStore } = await import("./taskStore");
+    const { usePlayerStore } = await import("./playerStore");
+    const { useCategoryStore } = await import("./categoryStore");
+    useTaskStore.setState({ pendentes: [], concluidas: [] });
+    usePlayerStore.setState({
+      xpAtual: 0,
+      level: 1,
+      xpTotal: 0,
+      streak: 0,
+      ultimoDiaAtivo: null,
+    });
+    useCategoryStore.setState({ categories: [] });
+    // Limpa AsyncStorage/localStorage
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("task-storage");
+      localStorage.removeItem("player-storage");
+      localStorage.removeItem("category-storage");
+      localStorage.removeItem("theme-storage");
+    }
   },
 }));
