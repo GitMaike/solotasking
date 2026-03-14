@@ -1,15 +1,54 @@
 import { Tabs } from "expo-router";
-import { Text, useColorScheme } from "react-native";
+import { Text, View } from "react-native";
+import { useTheme } from "../../hooks/useThemes";
+import { t } from "../../locales";
 
 function TabIcon({ label, color }: { label: string; color: string }) {
   return <Text style={{ color, fontSize: 20 }}>{label}</Text>;
 }
 
+function ThemeToggle() {
+  const { isDark, toggle } = useTheme();
+  return (
+    <div
+      onClick={toggle}
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        marginRight: 12,
+        backgroundColor: isDark ? "#0f0f1a" : "#f0f0f0",
+        border: `1.5px solid ${isDark ? "#534AB7" : "#d0b040"}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+        boxShadow: isDark
+          ? "0 0 12px rgba(83,74,183,0.4)"
+          : "0 0 12px rgba(208,176,64,0.3)",
+        fontSize: 18,
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          transition: "transform 0.4s ease",
+          transform: isDark ? "rotate(0deg)" : "rotate(180deg)",
+        }}
+      >
+        {isDark ? "🌙" : "☀️"}
+      </span>
+    </div>
+  );
+}
+
 export default function TabLayout() {
-  const dark = useColorScheme() === "dark";
+  const { isDark } = useTheme();
   const activeColor = "#7F77DD";
-  const inactiveColor = dark ? "#444441" : "#888780";
-  const bgColor = dark ? "#0a0a0f" : "#ffffff";
+  const inactiveColor = isDark ? "#444441" : "#888780";
+  const bgColor = isDark ? "#0a0a0f" : "#ffffff";
+  const textColor = isDark ? "#e8e6f0" : "#0a0a0f";
 
   return (
     <Tabs
@@ -18,46 +57,55 @@ export default function TabLayout() {
         tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
           backgroundColor: bgColor,
-          borderTopColor: dark ? "#1a1630" : "#e0e0e0",
+          borderTopColor: isDark ? "#1a1630" : "#e0e0e0",
           borderTopWidth: 0.5,
         },
         headerStyle: { backgroundColor: bgColor },
-        headerTintColor: dark ? "#e8e6f0" : "#0a0a0f",
+        headerTintColor: textColor,
         headerShown: true,
+        headerRight: () => (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <ThemeToggle />
+          </View>
+        ),
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Início",
+          title: t("tabs.home"),
           tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} />,
-          headerTitle: "SoloTasking",
+          headerTitle: t("home.title"),
         }}
       />
       <Tabs.Screen
         name="tasks"
         options={{
-          title: "Tarefas",
+          title: t("tabs.tasks"),
           tabBarIcon: ({ color }) => <TabIcon label="◎" color={color} />,
-          headerTitle: "Missões do dia",
+          headerTitle: t("tasks.title"),
         }}
       />
       <Tabs.Screen
-        name="completed"
+        name="friends"
         options={{
-          title: "Concluídas",
-          tabBarIcon: ({ color }) => <TabIcon label="✓" color={color} />,
-          headerTitle: "Missões concluídas",
+          title: t("tabs.friends"),
+          tabBarIcon: ({ color }) => <TabIcon label="⚔" color={color} />,
+          headerTitle: t("friends.title"),
         }}
       />
       <Tabs.Screen
-        name="progress"
+        name="profile"
         options={{
-          title: "Progresso",
-          tabBarIcon: ({ color }) => <TabIcon label="▲" color={color} />,
-          headerTitle: "Seu progresso",
+          title: t("tabs.profile"),
+          tabBarIcon: ({ color }) => <TabIcon label="◈" color={color} />,
+          headerTitle: t("profile.title"),
         }}
       />
+
+      {/* Esconder abas legadas da navegação */}
+      <Tabs.Screen name="progress" options={{ href: null }} />
+      <Tabs.Screen name="completed" options={{ href: null }} />
     </Tabs>
   );
 }

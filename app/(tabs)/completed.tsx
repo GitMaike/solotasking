@@ -1,10 +1,5 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useTheme } from "../../hooks/useThemes";
 import { useTaskStore } from "../../store/taskStore";
 
 const CATEGORIA_COR: Record<string, string> = {
@@ -18,7 +13,7 @@ const CATEGORIA_COR: Record<string, string> = {
 
 export default function CompletedScreen() {
   const { concluidas } = useTaskStore();
-  const dark = useColorScheme() === "dark";
+  const { isDark: dark } = useTheme();
   const s = dark ? darkStyles : lightStyles;
 
   return (

@@ -1,37 +1,32 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import { RANKS } from "../../constants/game";
-import { usePlayerStore, useRank } from "../../store/playerStore";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SUB_RANKS, getSubRank } from "../../constants/game";
+import { useTheme } from "../../hooks/useThemes";
+import { usePlayerStore } from "../../store/playerStore";
 import { useTaskStore } from "../../store/taskStore";
 
 export default function ProgressScreen() {
   const { level, xpAtual, xpTotal, streak } = usePlayerStore();
   const { concluidas } = useTaskStore();
-  const rank = useRank();
-  const dark = useColorScheme() === "dark";
+  const rank = getSubRank(xpTotal);
+  const { isDark: dark } = useTheme();
   const s = dark ? darkStyles : lightStyles;
 
-  const proximoRank = RANKS.find((r) => r.xpMinimo > xpTotal);
+  const proximoRank = [...SUB_RANKS].find((r) => r.xpMinimo > xpTotal);
 
   return (
     <ScrollView style={s.container}>
       {/* Rank atual */}
       <View style={s.rankCard}>
-        <Text style={s.rankLetra}>{rank.letra}</Text>
+        <Text style={s.rankLetra}>{rank.rank}</Text>
         <View>
           <Text style={s.rankNome}>{rank.nome}</Text>
           <Text style={s.rankSub}>
-            Rank {rank.letra} · Nível {level}
+            Rank {rank.rank}-{rank.sub} · Nível {level}
           </Text>
         </View>
       </View>
 
-      {/* Stats grid */}
+      {/* Stats */}
       <View style={s.grid}>
         <View style={s.statCard}>
           <Text style={s.statNum}>{xpTotal.toLocaleString("pt-BR")}</Text>
@@ -46,17 +41,19 @@ export default function ProgressScreen() {
           <Text style={s.statLabel}>streak dias</Text>
         </View>
         <View style={s.statCard}>
-          <Text style={s.statNum}>{concluidas.length}</Text>
+          <Text style={s.statNum}>
+            {concluidas.filter((t) => !t.removida).length}
+          </Text>
           <Text style={s.statLabel}>concluídas</Text>
         </View>
       </View>
 
-      {/* Próximo rank */}
+      {/* Próximo sub-rank */}
       {proximoRank && (
         <View style={s.card}>
-          <Text style={s.sectionTitle}>Próximo rank</Text>
-          <Text style={s.proximoRankLetra}>
-            {proximoRank.letra} — {proximoRank.nome}
+          <Text style={s.sectionTitle}>Próximo estágio</Text>
+          <Text style={s.proximoNome}>
+            {proximoRank.rank}-{proximoRank.sub} · {proximoRank.nome}
           </Text>
           <Text style={s.proximoXP}>
             Faltam {(proximoRank.xpMinimo - xpTotal).toLocaleString("pt-BR")} XP
@@ -64,17 +61,37 @@ export default function ProgressScreen() {
         </View>
       )}
 
-      {/* Tabela de ranks */}
+      {/* Tabela de sub-ranks */}
       <View style={s.card}>
         <Text style={s.sectionTitle}>Tabela de ranks</Text>
-        {RANKS.map((r) => {
-          const ativo = r.letra === rank.letra;
+        {SUB_RANKS.map((r) => {
+          const ativo = r.id === rank.id;
+          const rankColors: Record<string, string> = {
+            E: "#888780",
+            D: "#5DCAA5",
+            C: "#378ADD",
+            B: "#1D9E75",
+            A: "#EF9F27",
+            S: "#7F77DD",
+          };
+          const cor = rankColors[r.rank];
           return (
-            <View key={r.letra} style={[s.rankRow, ativo && s.rankRowAtivo]}>
-              <Text style={[s.rankRowLetra, ativo && { color: "#7F77DD" }]}>
-                {r.letra}
+            <View
+              key={r.id}
+              style={[
+                s.rankRow,
+                ativo && { backgroundColor: dark ? "#1a1630" : "#f0effe" },
+              ]}
+            >
+              <Text style={[s.rankRowLetra, { color: cor }]}>
+                {r.rank}-{r.sub}
               </Text>
-              <Text style={[s.rankRowNome, ativo && { color: "#7F77DD" }]}>
+              <Text
+                style={[
+                  s.rankRowNome,
+                  ativo && { color: "#7F77DD", fontWeight: "500" },
+                ]}
+              >
                 {r.nome}
               </Text>
               <Text style={s.rankRowXP}>
@@ -100,10 +117,10 @@ const base = {
     gap: 16,
   },
   rankLetra: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: "500" as const,
     color: "#7F77DD",
-    lineHeight: 56,
+    lineHeight: 60,
   },
   rankNome: { fontSize: 18, fontWeight: "500" as const },
   rankSub: { fontSize: 13, color: "#888780", marginTop: 2 },
@@ -131,22 +148,19 @@ const base = {
     textTransform: "uppercase" as const,
     marginBottom: 12,
   },
-  proximoRankLetra: {
-    fontSize: 16,
-    fontWeight: "500" as const,
-    marginBottom: 4,
-  },
+  proximoNome: { fontSize: 15, fontWeight: "500" as const, marginBottom: 4 },
   proximoXP: { fontSize: 13, color: "#888780" },
   rankRow: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    paddingVertical: 10,
-    borderTopWidth: 0.5,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    marginBottom: 2,
   },
-  rankRowAtivo: {},
-  rankRowLetra: { width: 28, fontSize: 15, fontWeight: "500" as const },
-  rankRowNome: { flex: 1, fontSize: 14 },
-  rankRowXP: { fontSize: 12, color: "#888780" },
+  rankRowLetra: { width: 44, fontSize: 12, fontWeight: "500" as const },
+  rankRowNome: { flex: 1, fontSize: 13 },
+  rankRowXP: { fontSize: 11, color: "#888780" },
 };
 
 const lightStyles = StyleSheet.create({
@@ -164,9 +178,7 @@ const lightStyles = StyleSheet.create({
     borderColor: "#e0e0e0",
   },
   card: { ...base.card, backgroundColor: "#fff", borderColor: "#e0e0e0" },
-  proximoRankLetra: { ...base.proximoRankLetra, color: "#0a0a0f" },
-  rankRow: { ...base.rankRow, borderTopColor: "#f0f0f0" },
-  rankRowLetra: { ...base.rankRowLetra, color: "#0a0a0f" },
+  proximoNome: { ...base.proximoNome, color: "#0a0a0f" },
   rankRowNome: { ...base.rankRowNome, color: "#0a0a0f" },
 });
 
@@ -185,8 +197,6 @@ const darkStyles = StyleSheet.create({
     borderColor: "#1a1630",
   },
   card: { ...base.card, backgroundColor: "#0f0f1a", borderColor: "#1a1630" },
-  proximoRankLetra: { ...base.proximoRankLetra, color: "#e8e6f0" },
-  rankRow: { ...base.rankRow, borderTopColor: "#1a1630" },
-  rankRowLetra: { ...base.rankRowLetra, color: "#e8e6f0" },
+  proximoNome: { ...base.proximoNome, color: "#e8e6f0" },
   rankRowNome: { ...base.rankRowNome, color: "#e8e6f0" },
 });

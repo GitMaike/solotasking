@@ -1,14 +1,8 @@
-import { useState } from "react";
-import { useColorScheme } from "react-native";
+import { useRef, useState } from "react";
 import { type Dificuldade } from "../../constants/game";
+import { useTheme } from "../../hooks/useThemes";
+import { useCategoryStore } from "../../store/categoryStore";
 import { useTaskStore, type Categoria } from "../../store/taskStore";
-
-const CATEGORIAS: { id: Categoria; nome: string }[] = [
-  { id: "rotina", nome: "Rotina" },
-  { id: "treino", nome: "Treino" },
-  { id: "estudos", nome: "Estudos" },
-  { id: "trabalho", nome: "Trabalho" },
-];
 
 const DIFICULDADES: { id: Dificuldade; nome: string; xp: number }[] = [
   { id: "facil", nome: "Fácil", xp: 10 },
@@ -17,53 +11,50 @@ const DIFICULDADES: { id: Dificuldade; nome: string; xp: number }[] = [
   { id: "epico", nome: "Épico", xp: 100 },
 ];
 
-const CAT_COR: Record<string, string> = {
-  rotina: "#7F77DD",
-  treino: "#1D9E75",
-  estudos: "#378ADD",
-  trabalho: "#D4537E",
-  ingles: "#5DCAA5",
-  musica: "#AFA9EC",
-};
-
 export default function TasksScreen() {
   const { pendentes, concluirTarefa, apagarTarefa, criarTarefa } =
     useTaskStore();
-  const dark = useColorScheme() === "dark";
+  const { categories, adicionar, editar, remover } = useCategoryStore();
+  const { isDark } = useTheme();
 
   const [mostrarForm, setMostrarForm] = useState(false);
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState<Categoria | null>(null);
-  const [categoriaCustom, setCategoriaCustom] = useState("");
-  const [mostrarCampoCustom, setMostrarCampoCustom] = useState(false);
   const [dificuldade, setDificuldade] = useState<Dificuldade | null>(null);
   const [modalApagar, setModalApagar] = useState<{
     id: string;
     nome: string;
   } | null>(null);
 
-  const bg = dark ? "#0a0a0f" : "#f5f5f5";
-  const card = dark ? "#0f0f1a" : "#ffffff";
-  const bord = dark ? "#1a1630" : "#e0e0e0";
-  const text = dark ? "#e8e6f0" : "#0a0a0f";
+  // Gerenciar categorias
+  const [novaCategoria, setNovaCategoria] = useState("");
+  const [mostrarAddCat, setMostrarAddCat] = useState(false);
+  const [editandoCat, setEditandoCat] = useState<string | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const clickTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const bg = isDark ? "#0a0a0f" : "#f5f5f5";
+  const card = isDark ? "#0f0f1a" : "#ffffff";
+  const bord = isDark ? "#1a1630" : "#e0e0e0";
+  const text = isDark ? "#e8e6f0" : "#0a0a0f";
   const muted = "#888780";
-  const input = dark ? "#070710" : "#f0f0f0";
+  const input = isDark ? "#070710" : "#f0f0f0";
 
   const podeSalvar =
     nome.trim().length > 0 && categoria !== null && dificuldade !== null;
 
   const salvar = () => {
     if (!podeSalvar) return;
+    const catObj = categories.find((c) => c.id === categoria);
     criarTarefa({
       nome: nome.trim(),
       categoria: categoria!,
+      categoriaNome: catObj?.nome ?? categoria!,
       dificuldade: dificuldade!,
     });
     setNome("");
     setCategoria(null);
     setDificuldade(null);
-    setCategoriaCustom("");
-    setMostrarCampoCustom(false);
     setMostrarForm(false);
   };
 
@@ -71,6 +62,27 @@ export default function TasksScreen() {
     if (!modalApagar) return;
     apagarTarefa(modalApagar.id);
     setModalApagar(null);
+  };
+
+  // Duplo clique para editar categoria
+  const handleCatClick = (id: string, nomeAtual: string) => {
+    if (clickTimers.current[id]) {
+      clearTimeout(clickTimers.current[id]);
+      delete clickTimers.current[id];
+      setEditandoCat(id);
+      setEditNome(nomeAtual);
+    } else {
+      clickTimers.current[id] = setTimeout(() => {
+        delete clickTimers.current[id];
+        setCategoria(id as Categoria);
+      }, 250);
+    }
+  };
+
+  const salvarEdicaoCat = (id: string) => {
+    editar(id, editNome);
+    setEditandoCat(null);
+    setEditNome("");
   };
 
   const labelStyle: React.CSSProperties = {
@@ -83,6 +95,22 @@ export default function TasksScreen() {
     marginBottom: 8,
   };
 
+  const btnStyle = (active: boolean, cor?: string): React.CSSProperties => ({
+    padding: "9px 12px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    border: `${active ? 1.5 : 0.5}px solid ${active ? (cor ?? "#534AB7") : bord}`,
+    backgroundColor: active ? (isDark ? "#1a1630" : "#eeedfb") : input,
+    color: active ? (cor ?? "#7F77DD") : text,
+    fontSize: 13,
+    fontWeight: 500,
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    position: "relative",
+  });
+
   return (
     <div
       style={{
@@ -92,7 +120,6 @@ export default function TasksScreen() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Botão nova missão */}
       <button
         onClick={() => setMostrarForm((v) => !v)}
         style={{
@@ -107,13 +134,11 @@ export default function TasksScreen() {
           cursor: "pointer",
           marginBottom: 16,
           fontFamily: "inherit",
-          transition: "background 0.2s",
         }}
       >
         {mostrarForm ? "✕ Cancelar" : "+ Nova missão"}
       </button>
 
-      {/* Formulário */}
       {mostrarForm && (
         <div
           style={{
@@ -147,115 +172,182 @@ export default function TasksScreen() {
           />
 
           <label style={labelStyle}>Categoria</label>
+
+          {/* Lista de categorias gerenciáveis */}
           <div
             style={{
               display: "flex",
               flexWrap: "wrap",
               gap: 8,
-              marginBottom: mostrarCampoCustom ? 8 : 20,
+              marginBottom: 8,
             }}
           >
-            {CATEGORIAS.map((c) => {
+            {categories.map((c) => {
               const sel = categoria === c.id;
+              if (editandoCat === c.id) {
+                return (
+                  <div key={c.id} style={{ display: "flex", gap: 4 }}>
+                    <input
+                      autoFocus
+                      value={editNome}
+                      onChange={(e) => setEditNome(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") salvarEdicaoCat(c.id);
+                        if (e.key === "Escape") setEditandoCat(null);
+                      }}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: `1.5px solid #534AB7`,
+                        backgroundColor: input,
+                        color: text,
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        outline: "none",
+                        width: 120,
+                      }}
+                    />
+                    <button
+                      onClick={() => salvarEdicaoCat(c.id)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "none",
+                        backgroundColor: "#534AB7",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: 12,
+                      }}
+                    >
+                      Ok
+                    </button>
+                    <button
+                      onClick={() => setEditandoCat(null)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: `0.5px solid ${bord}`,
+                        backgroundColor: "transparent",
+                        color: muted,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: 12,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              }
               return (
-                <button
+                <div
                   key={c.id}
-                  onClick={() => {
-                    setCategoria(c.id);
-                    setMostrarCampoCustom(false);
-                    setCategoriaCustom("");
-                  }}
-                  style={{
-                    padding: "9px 16px",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    border: `${sel ? 1.5 : 0.5}px solid ${sel ? "#534AB7" : bord}`,
-                    backgroundColor: sel ? "#1a1630" : input,
-                    color: sel ? "#7F77DD" : text,
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
+                  style={{ ...btnStyle(sel, c.cor), paddingRight: 6 }}
                 >
-                  {c.nome}
-                </button>
+                  <span
+                    onClick={() => handleCatClick(c.id, c.nome)}
+                    title="Clique para selecionar · duplo clique para editar"
+                    style={{ cursor: "pointer" }}
+                  >
+                    {c.nome}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      remover(c.id);
+                      if (categoria === c.id) setCategoria(null);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "0 2px",
+                      color: sel ? c.cor : muted,
+                      fontSize: 12,
+                      lineHeight: 1,
+                      marginLeft: 2,
+                    }}
+                    title="Remover categoria"
+                  >
+                    ✕
+                  </button>
+                </div>
               );
             })}
-            {/* Categoria customizada */}
-            <button
-              onClick={() => {
-                setMostrarCampoCustom(true);
-                setCategoria(null);
-              }}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                border: `${mostrarCampoCustom ? 1.5 : 0.5}px solid ${mostrarCampoCustom ? "#534AB7" : bord}`,
-                backgroundColor: mostrarCampoCustom ? "#1a1630" : input,
-                color: mostrarCampoCustom ? "#7F77DD" : muted,
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              + Outra
-            </button>
-          </div>
 
-          {mostrarCampoCustom && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              <input
-                type="text"
-                value={categoriaCustom}
-                onChange={(e) => setCategoriaCustom(e.target.value)}
-                placeholder="Nome da categoria"
-                maxLength={20}
-                autoFocus
-                style={{
-                  flex: 1,
-                  backgroundColor: input,
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  fontSize: 14,
-                  border: `0.5px solid #534AB7`,
-                  color: text,
-                  outline: "none",
-                  fontFamily: "inherit",
-                }}
-              />
+            {/* Adicionar nova categoria */}
+            {mostrarAddCat ? (
+              <div style={{ display: "flex", gap: 4 }}>
+                <input
+                  autoFocus
+                  value={novaCategoria}
+                  onChange={(e) => setNovaCategoria(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && novaCategoria.trim()) {
+                      adicionar(novaCategoria);
+                      setNovaCategoria("");
+                      setMostrarAddCat(false);
+                    }
+                    if (e.key === "Escape") setMostrarAddCat(false);
+                  }}
+                  placeholder="Nova categoria"
+                  maxLength={20}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: `1.5px solid #534AB7`,
+                    backgroundColor: input,
+                    color: text,
+                    fontSize: 13,
+                    fontFamily: "inherit",
+                    outline: "none",
+                    width: 140,
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (novaCategoria.trim()) {
+                      adicionar(novaCategoria);
+                      setNovaCategoria("");
+                    }
+                    setMostrarAddCat(false);
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "none",
+                    backgroundColor: "#534AB7",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                  }}
+                >
+                  Ok
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={() => {
-                  if (categoriaCustom.trim()) {
-                    setCategoria(
-                      categoriaCustom
-                        .trim()
-                        .toLowerCase()
-                        .replace(/\s+/g, "_") as Categoria,
-                    );
-                  }
-                }}
+                onClick={() => setMostrarAddCat(true)}
                 style={{
-                  backgroundColor: "#534AB7",
-                  color: "#fff",
-                  border: "none",
+                  padding: "9px 12px",
                   borderRadius: 8,
-                  padding: "0 16px",
                   cursor: "pointer",
+                  border: `0.5px dashed ${bord}`,
+                  backgroundColor: "transparent",
+                  color: muted,
+                  fontSize: 13,
                   fontFamily: "inherit",
-                  fontWeight: 500,
-                  fontSize: 14,
                 }}
               >
-                Ok
+                + Nova
               </button>
-            </div>
-          )}
-          {mostrarCampoCustom && categoria && (
-            <p style={{ fontSize: 12, color: "#1D9E75", margin: "0 0 16px" }}>
-              ✓ Categoria: {categoria}
-            </p>
-          )}
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: muted, margin: "4px 0 16px" }}>
+            Clique para selecionar · duplo clique para editar · ✕ para remover
+          </p>
 
           <label style={labelStyle}>Dificuldade</label>
           <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
@@ -271,7 +363,11 @@ export default function TasksScreen() {
                     borderRadius: 8,
                     cursor: "pointer",
                     border: `${sel ? 1.5 : 0.5}px solid ${sel ? "#534AB7" : bord}`,
-                    backgroundColor: sel ? "#1a1630" : input,
+                    backgroundColor: sel
+                      ? isDark
+                        ? "#1a1630"
+                        : "#eeedfb"
+                      : input,
                     fontFamily: "inherit",
                     textAlign: "center",
                   }}
@@ -305,10 +401,10 @@ export default function TasksScreen() {
               fontFamily: "inherit",
               backgroundColor: podeSalvar
                 ? "#534AB7"
-                : dark
+                : isDark
                   ? "#1a1630"
                   : "#d5d5d5",
-              color: podeSalvar ? "#ffffff" : muted,
+              color: podeSalvar ? "#fff" : muted,
               cursor: podeSalvar ? "pointer" : "not-allowed",
             }}
           >
@@ -317,7 +413,6 @@ export default function TasksScreen() {
         </div>
       )}
 
-      {/* Lista vazia */}
       {pendentes.length === 0 && !mostrarForm && (
         <div
           style={{
@@ -344,136 +439,139 @@ export default function TasksScreen() {
         </div>
       )}
 
-      {/* Lista de tarefas */}
-      {pendentes.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            backgroundColor: card,
-            border: `0.5px solid ${bord}`,
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 10,
-          }}
-        >
+      {pendentes.map((t) => {
+        const catCor =
+          categories.find((c) => c.id === t.categoria)?.cor ?? "#534AB7";
+        return (
           <div
+            key={t.id}
             style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
+              backgroundColor: card,
+              border: `0.5px solid ${bord}`,
+              borderRadius: 12,
+              padding: 14,
               marginBottom: 10,
             }}
           >
             <div
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                backgroundColor: CAT_COR[t.categoria] ?? "#534AB7",
-                marginTop: 6,
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{
-                flex: 1,
-                fontSize: 14,
-                fontWeight: 500,
-                color: text,
-                lineHeight: "20px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                marginBottom: 10,
               }}
             >
-              {t.nome}
-            </span>
-            <span
-              style={{
-                fontSize: 13,
-                color: "#7F77DD",
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-              }}
-            >
-              +{t.xp} XP
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "flex", gap: 6 }}>
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  backgroundColor: catCor,
+                  marginTop: 6,
+                  flexShrink: 0,
+                }}
+              />
               <span
                 style={{
-                  fontSize: 10,
-                  padding: "3px 9px",
-                  borderRadius: 10,
-                  border: `0.5px solid ${CAT_COR[t.categoria] ?? "#534AB7"}`,
-                  color: CAT_COR[t.categoria] ?? "#534AB7",
+                  flex: 1,
+                  fontSize: 14,
                   fontWeight: 500,
+                  color: text,
+                  lineHeight: "20px",
                 }}
               >
-                {t.categoria}
+                {t.nome}
               </span>
               <span
                 style={{
-                  fontSize: 10,
-                  padding: "3px 9px",
-                  borderRadius: 10,
-                  border: `0.5px solid ${bord}`,
-                  color: muted,
+                  fontSize: 13,
+                  color: "#7F77DD",
                   fontWeight: 500,
+                  whiteSpace: "nowrap",
                 }}
               >
-                {t.dificuldade}
+                +{t.xp} XP
               </span>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setModalApagar({ id: t.id, nome: t.nome })}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 8,
-                  border: "0.5px solid #993C1D",
-                  backgroundColor: "transparent",
-                  color: "#D85A30",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Apagar
-              </button>
-              <button
-                onClick={() => concluirTarefa(t.id)}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 8,
-                  border: "none",
-                  backgroundColor: "#534AB7",
-                  color: "#fff",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Concluir
-              </button>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ display: "flex", gap: 6 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: "3px 9px",
+                    borderRadius: 10,
+                    border: `0.5px solid ${catCor}`,
+                    color: catCor,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t.categoria}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: "3px 9px",
+                    borderRadius: 10,
+                    border: `0.5px solid ${bord}`,
+                    color: muted,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t.dificuldade}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => setModalApagar({ id: t.id, nome: t.nome })}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    border: "0.5px solid #993C1D",
+                    backgroundColor: "transparent",
+                    color: "#D85A30",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Apagar
+                </button>
+                <button
+                  onClick={() => concluirTarefa(t.id)}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    border: "none",
+                    backgroundColor: "#534AB7",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Concluir
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
-      {/* Modal de confirmação de exclusão */}
+      {/* Modal de exclusão */}
       {modalApagar && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0,0,0,0.7)",
+            backgroundColor: "rgba(0,0,0,0.75)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -493,27 +591,42 @@ export default function TasksScreen() {
               fontFamily: "system-ui, sans-serif",
             }}
           >
-            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                backgroundColor: isDark ? "#1a0a0a" : "#fff0f0",
+                border: "1.5px solid #993C1D",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+                fontSize: 24,
+              }}
+            >
+              ⚠
+            </div>
             <p
               style={{
                 fontSize: 17,
                 fontWeight: 600,
                 color: text,
-                margin: "0 0 8px",
+                margin: "0 0 6px",
               }}
             >
               Apagar missão
             </p>
-            <p style={{ fontSize: 13, color: muted, margin: "0 0 4px" }}>
+            <p style={{ fontSize: 13, color: muted, margin: "0 0 16px" }}>
               "{modalApagar.nome}"
             </p>
             <div
               style={{
-                backgroundColor: dark ? "#1a0a0a" : "#fff5f5",
+                backgroundColor: isDark ? "#1a0a0a" : "#fff5f5",
                 border: "0.5px solid #993C1D",
                 borderRadius: 8,
                 padding: "10px 16px",
-                margin: "16px 0 24px",
+                marginBottom: 24,
               }}
             >
               <p
@@ -524,7 +637,7 @@ export default function TasksScreen() {
                   fontWeight: 500,
                 }}
               >
-                Custo: -25 XP · pode regredir de level
+                -25 XP · pode regredir de level
               </p>
             </div>
             <div style={{ display: "flex", gap: 10 }}>

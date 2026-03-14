@@ -63,10 +63,10 @@ describe("deduzirXP", () => {
     expect(usePlayerStore.getState().xpAtual).toBe(0);
   });
 
-  it("xpTotal não diminui ao deduzir XP", () => {
+  it("xpTotal diminui ao deduzir XP", () => {
     act(() => usePlayerStore.getState().ganharXP(100));
     act(() => usePlayerStore.getState().deduzirXP());
-    expect(usePlayerStore.getState().xpTotal).toBe(100);
+    expect(usePlayerStore.getState().xpTotal).toBe(75); // 100 - 25 = 75
   });
 });
 

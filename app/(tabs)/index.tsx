@@ -1,19 +1,14 @@
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from "react-native";
-import { usePlayerStore, useRank } from "../../store/playerStore";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { getSubRank } from "../../constants/game";
+import { useTheme } from "../../hooks/useThemes";
+import { usePlayerStore } from "../../store/playerStore";
 import { useTaskStore } from "../../store/taskStore";
 
 export default function DashboardScreen() {
   const { xpAtual, level, xpTotal, streak } = usePlayerStore();
   const { pendentes, concluidas } = useTaskStore();
-  const rank = useRank();
-  const scheme = useColorScheme();
-  const dark = scheme === "dark";
+  const rank = getSubRank(xpTotal);
+  const { isDark: dark } = useTheme();
   const s = dark ? darkStyles : lightStyles;
 
   const xpNecessario = level * 200;
@@ -25,12 +20,10 @@ export default function DashboardScreen() {
       <View style={s.card}>
         <View style={s.rankRow}>
           <View style={s.rankBadge}>
-            <Text style={s.rankLetra}>{rank.letra}</Text>
+            <Text style={s.rankLetra}>{rank.rank}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.rankNome}>
-              Rank {rank.letra} — {rank.nome}
-            </Text>
+            <Text style={s.rankNome}>{rank.nome}</Text>
             <Text style={s.levelText}>Nível {level}</Text>
           </View>
           <View style={s.streakBadge}>

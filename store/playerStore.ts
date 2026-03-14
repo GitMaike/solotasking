@@ -1,10 +1,10 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
-  XP_PARA_PROXIMO_LEVEL,
   CUSTO_APAGAR_TAREFA,
   getRank,
+  XP_PARA_PROXIMO_LEVEL,
 } from "../constants/game";
 
 // --- Tipos ---
@@ -54,40 +54,37 @@ export const usePlayerStore = create<PlayerState & PlayerActions>()(
 
       // Chamada quando o jogador apaga uma tarefa pendente (custa 25 XP)
       deduzirXP: (quantidade = CUSTO_APAGAR_TAREFA) => {
-        const { xpAtual, level } = get();
-        let resto = quantidade - xpAtual; // quanto falta depois de zerar o xpAtual
+        const { xpAtual, level, xpTotal } = get();
 
-        // Caso simples: tem XP suficiente no level atual
+        // xpTotal diminui — a penalidade é real e afeta o rank
+        const novoXPTotal = Math.max(0, xpTotal - quantidade);
+
         if (xpAtual >= quantidade) {
-          set({ xpAtual: xpAtual - quantidade });
+          set({ xpAtual: xpAtual - quantidade, xpTotal: novoXPTotal });
           return;
         }
 
-        // Caso complexo: precisa regredir de level
+        let resto = quantidade - xpAtual;
         let novoLevel = level;
         let novoXP = 0;
 
         while (resto > 0 && novoLevel > 1) {
           novoLevel -= 1;
-          // ao regredir, o jogador "recupera" o XP máximo do level anterior
           const xpDoLevelAnterior = XP_PARA_PROXIMO_LEVEL(novoLevel);
           if (resto <= xpDoLevelAnterior) {
             novoXP = xpDoLevelAnterior - resto;
             resto = 0;
           } else {
-            // raro: custo maior que um level inteiro, continua regredindo
             resto -= xpDoLevelAnterior;
           }
         }
 
-        // Proteção: nunca vai abaixo de level 1 com 0 XP
         if (novoLevel <= 1 && resto > 0) {
           novoLevel = 1;
           novoXP = 0;
         }
 
-        set({ xpAtual: novoXP, level: novoLevel });
-        // Nota: xpTotal NÃO diminui — ele define o rank e é permanente
+        set({ xpAtual: novoXP, level: novoLevel, xpTotal: novoXPTotal });
       },
 
       incrementarStreak: () => {
