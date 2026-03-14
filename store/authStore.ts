@@ -24,6 +24,33 @@ type AuthActions = {
   signOut: () => Promise<void>;
 };
 
+const limparDadosLocais = async () => {
+  try {
+    const { useTaskStore } = await import("./taskStore");
+    const { usePlayerStore } = await import("./playerStore");
+    const { useCategoryStore } = await import("./categoryStore");
+
+    useTaskStore.setState({ pendentes: [], concluidas: [] });
+    usePlayerStore.setState({
+      xpAtual: 0,
+      level: 1,
+      xpTotal: 0,
+      streak: 0,
+      ultimoDiaAtivo: null,
+    });
+    useCategoryStore.setState({ categories: [] });
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("task-storage");
+      localStorage.removeItem("player-storage");
+      localStorage.removeItem("category-storage");
+      localStorage.removeItem("theme-storage");
+    }
+  } catch (e) {
+    console.warn("Erro ao limpar dados locais:", e);
+  }
+};
+
 export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   user: null,
   session: null,
@@ -31,7 +58,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   initialized: false,
 
   initialize: () => {
-    // Escuta mudanças de sessão em tempo real
     supabase.auth.getSession().then(({ data: { session } }) => {
       set({ session, user: session?.user ?? null, initialized: true });
     });
@@ -78,26 +104,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+    await limparDadosLocais();
     set({ user: null, session: null });
-    // Limpa dados locais ao deslogar
-    const { useTaskStore } = await import("./taskStore");
-    const { usePlayerStore } = await import("./playerStore");
-    const { useCategoryStore } = await import("./categoryStore");
-    useTaskStore.setState({ pendentes: [], concluidas: [] });
-    usePlayerStore.setState({
-      xpAtual: 0,
-      level: 1,
-      xpTotal: 0,
-      streak: 0,
-      ultimoDiaAtivo: null,
-    });
-    useCategoryStore.setState({ categories: [] });
-    // Limpa AsyncStorage/localStorage
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("task-storage");
-      localStorage.removeItem("player-storage");
-      localStorage.removeItem("category-storage");
-      localStorage.removeItem("theme-storage");
-    }
   },
 }));
