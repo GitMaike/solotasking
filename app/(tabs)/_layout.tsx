@@ -96,11 +96,6 @@ export default function TabLayout() {
             title: t("tabs.friends"),
             headerTitle: t("friends.title"),
             tabBarIcon: ({ color }) => <TabIcon label="⚔" color={color} />,
-            tabBarButton: (props) => (
-              <div id="tour-tab-guilda" style={{ flex: 1, display: "flex" }}>
-                {props.children as React.ReactNode}
-              </div>
-            ),
           }}
         />
         <Tabs.Screen

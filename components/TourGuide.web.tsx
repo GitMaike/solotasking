@@ -70,9 +70,9 @@ const PASSOS: Passo[] = [
   {
     titulo: "Guilda de caçadores",
     descricao:
-      "Na aba Guilda você busca outros caçadores pelo username, envia convites e vê o ranking de XP entre seus amigos.",
-    elementId: "tour-tab-guilda",
-    posicao: "top",
+      'Na aba Guilda você busca outros caçadores pelo username, envia convites e vê o ranking de XP entre seus amigos. Clique em "Guilda" na barra de navegação abaixo.',
+    elementId: null,
+    posicao: "center",
     icone: "⚔️",
     rota: "/friends",
   },
