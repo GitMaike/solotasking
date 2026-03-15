@@ -6,12 +6,14 @@ import { useAuthStore } from "../../store/authStore";
 import { usePlayerStore } from "../../store/playerStore";
 import { carregarDadosDoUsuario } from "../../store/syncStore";
 import { useTaskStore } from "../../store/taskStore";
+import { useTourStore } from "../../store/tourStore";
 
 export default function DashboardScreen() {
   const { xpAtual, level, xpTotal, streak, verificarStreak } = usePlayerStore();
   const { pendentes, concluidas, verificarExpiradas } = useTaskStore();
-  const rank = getSubRank(xpTotal);
   const { user } = useAuthStore();
+  const { tourCompleto, iniciarTour } = useTourStore();
+  const rank = getSubRank(xpTotal);
   const { isDark: dark } = useTheme();
   const s = dark ? darkStyles : lightStyles;
 
@@ -20,6 +22,9 @@ export default function DashboardScreen() {
     verificarExpiradas();
     if (user) {
       carregarDadosDoUsuario(user.id);
+      if (!tourCompleto) {
+        setTimeout(() => iniciarTour(), 1500);
+      }
     }
   }, [user]);
 
@@ -28,16 +33,16 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView style={s.container}>
-      <View style={s.card}>
+      <View nativeID="tour-dashboard-rank" style={s.card}>
         <View style={s.rankRow}>
-          <View style={s.rankBadge}>
+          <View nativeID="tour-rank-badge" style={s.rankBadge}>
             <Text style={s.rankLetra}>{rank.rank}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.rankNome}>{rank.nome}</Text>
             <Text style={s.levelText}>Nível {level}</Text>
           </View>
-          <View style={s.streakBadge}>
+          <View nativeID="tour-streak" style={s.streakBadge}>
             <Text style={s.streakNum}>{streak}</Text>
             <Text style={s.streakLabel}>streak</Text>
           </View>

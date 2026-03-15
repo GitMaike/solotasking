@@ -122,6 +122,7 @@ export default function TasksScreen() {
       }}
     >
       <button
+        id="tour-nova-missao"
         onClick={() => setMostrarForm((v) => !v)}
         style={{
           width: "100%",
@@ -259,7 +260,6 @@ export default function TasksScreen() {
                 >
                   <span
                     onClick={() => handleCatClick(c.id, c.nome)}
-                    title="Clique: selecionar · Duplo clique: editar"
                     style={{
                       fontSize: 13,
                       fontWeight: 500,
@@ -283,7 +283,6 @@ export default function TasksScreen() {
                       fontSize: 12,
                       lineHeight: 1,
                     }}
-                    title="Remover categoria"
                   >
                     ✕
                   </button>
@@ -403,7 +402,7 @@ export default function TasksScreen() {
           </div>
 
           <label style={labelStyle}>Prazo (opcional)</label>
-          <div style={{ marginBottom: 24 }}>
+          <div id="tour-prazo" style={{ marginBottom: 24 }}>
             <input
               type="date"
               value={dataLimite}
@@ -504,7 +503,7 @@ export default function TasksScreen() {
         </div>
       )}
 
-      {pendentes.map((t) => {
+      {pendentes.map((t, idx) => {
         const catCor =
           categories.find((c) => c.id === t.categoria)?.cor ??
           CAT_COR[t.categoria] ??
@@ -514,6 +513,7 @@ export default function TasksScreen() {
         return (
           <div
             key={t.id}
+            id={idx === 0 ? "tour-apagar" : undefined}
             style={{
               backgroundColor: card,
               border: `0.5px solid ${expirou ? "#993C1D" : bord}`,

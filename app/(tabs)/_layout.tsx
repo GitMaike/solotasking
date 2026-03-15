@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { Text, View } from "react-native";
 import { LevelUpModal } from "../../components/LevelUpModal.web";
+import { TourGuide } from "../../components/TourGuide.web";
 import { XPFloatLayer } from "../../components/XPFloat.web";
 import { useTheme } from "../../hooks/useThemes";
 import { t } from "../../locales";
@@ -14,7 +15,6 @@ function ThemeToggle() {
   return (
     <div
       onClick={toggle}
-      title={isDark ? "Mudar para modo claro" : "Mudar para modo escuro"}
       style={{
         width: 40,
         height: 40,
@@ -94,8 +94,13 @@ export default function TabLayout() {
           name="friends"
           options={{
             title: t("tabs.friends"),
-            tabBarIcon: ({ color }) => <TabIcon label="⚔" color={color} />,
             headerTitle: t("friends.title"),
+            tabBarIcon: ({ color }) => <TabIcon label="⚔" color={color} />,
+            tabBarButton: (props) => (
+              <div id="tour-tab-guilda" style={{ flex: 1, display: "flex" }}>
+                {props.children as React.ReactNode}
+              </div>
+            ),
           }}
         />
         <Tabs.Screen
@@ -112,6 +117,7 @@ export default function TabLayout() {
 
       <XPFloatLayer />
       <LevelUpModal />
+      <TourGuide />
     </>
   );
 }

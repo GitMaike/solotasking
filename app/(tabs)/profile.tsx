@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../store/authStore";
 import { usePlayerStore } from "../../store/playerStore";
 import { useTaskStore } from "../../store/taskStore";
+import { useTourStore } from "../../store/tourStore";
 
 const CATEGORIA_COR: Record<string, string> = {
   rotina: "#7F77DD",
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const { xpAtual, xpTotal, level, streak } = usePlayerStore();
   const { concluidas } = useTaskStore();
   const { isDark } = useTheme();
+  const { resetarTour, iniciarTour } = useTourStore();
 
   const [profile, setProfile] = useState<{
     username: string;
@@ -66,7 +68,6 @@ export default function ProfileScreen() {
 
   const podeEditarUsername = () => diasParaPoderEditar() === 0;
 
-  // Usa a function segura do banco — o cooldown e unicidade são validados server-side
   const salvarUsername = async () => {
     const trimmed = novoUsername.trim();
     if (!trimmed) return;
@@ -85,7 +86,6 @@ export default function ProfileScreen() {
     }
 
     const result = data as { error?: string; success?: boolean };
-
     if (result?.error) {
       setErroUsername(result.error);
       return;
@@ -105,10 +105,6 @@ export default function ProfileScreen() {
     setNovoUsername("");
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
   const inicialAvatar = profile?.username?.[0]?.toUpperCase() ?? "?";
   const concluidasReais = concluidas.filter((t) => !t.removida && !t.expirada);
   const removidas = concluidas.filter((t) => t.removida || t.expirada);
@@ -123,7 +119,6 @@ export default function ProfileScreen() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Header */}
       <div
         style={{
           backgroundColor: card,
@@ -248,8 +243,7 @@ export default function ProfileScreen() {
                   </p>
                 )}
                 <p style={{ fontSize: 11, color: muted, margin: "4px 0 0" }}>
-                  3-30 caracteres · letras, números e _ · verificação no
-                  servidor
+                  3-30 caracteres · letras, números e _
                 </p>
               </div>
             ) : (
@@ -277,7 +271,6 @@ export default function ProfileScreen() {
                       setEditandoUsername(true);
                       setNovoUsername(profile?.username ?? "");
                     }}
-                    title="Editar username"
                     style={{
                       background: "none",
                       border: "none",
@@ -293,14 +286,7 @@ export default function ProfileScreen() {
                 ) : (
                   <span
                     title={`Pode alterar em ${diasRestantes} dias`}
-                    style={{
-                      fontSize: 11,
-                      color: muted,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 3,
-                      cursor: "default",
-                    }}
+                    style={{ fontSize: 11, color: muted, cursor: "default" }}
                   >
                     🔒 {diasRestantes}d
                   </span>
@@ -320,7 +306,6 @@ export default function ProfileScreen() {
             >
               @{profile?.username ?? "..."} · {user?.email}
             </p>
-
             <div
               style={{
                 display: "inline-flex",
@@ -342,7 +327,6 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        {/* Barra de XP */}
         <div style={{ marginBottom: 6 }}>
           <div
             style={{
@@ -376,7 +360,6 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        {/* Stats */}
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           {[
             { val: xpTotal.toLocaleString("pt-BR"), label: "XP total" },
@@ -410,7 +393,6 @@ export default function ProfileScreen() {
       </div>
 
       <div style={{ padding: 16 }}>
-        {/* Abas */}
         <div
           style={{
             display: "flex",
@@ -443,7 +425,6 @@ export default function ProfileScreen() {
           ))}
         </div>
 
-        {/* Tabela de ranks */}
         {abaAtiva === "stats" && (
           <div
             style={{
@@ -536,7 +517,6 @@ export default function ProfileScreen() {
           </div>
         )}
 
-        {/* Histórico */}
         {abaAtiva === "historico" && (
           <div
             style={{
@@ -686,7 +666,6 @@ export default function ProfileScreen() {
           </div>
         )}
 
-        {/* Botão logout */}
         <button
           onClick={() => setModalLogout(true)}
           style={{
@@ -704,9 +683,29 @@ export default function ProfileScreen() {
         >
           Sair da conta
         </button>
+
+        <button
+          onClick={() => {
+            resetarTour();
+            setTimeout(() => iniciarTour(), 300);
+          }}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            backgroundColor: "transparent",
+            color: muted,
+            border: `0.5px solid ${bord}`,
+            borderRadius: 12,
+            padding: "12px 0",
+            fontSize: 14,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Ver tutorial novamente
+        </button>
       </div>
 
-      {/* Modal logout */}
       {modalLogout && (
         <div
           style={{
@@ -765,7 +764,7 @@ export default function ProfileScreen() {
                 Cancelar
               </button>
               <button
-                onClick={handleSignOut}
+                onClick={() => signOut()}
                 style={{
                   flex: 1,
                   padding: "11px 0",
